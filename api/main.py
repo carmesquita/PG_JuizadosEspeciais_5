@@ -4,7 +4,9 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from contextlib import asynccontextmanager
-from src.modelo_llm import carregar_modelo, gerar_comparacao
+from typing import Literal
+from src.conversa_llm import carregar_modelo_conversa, responder_conversa
+from openai import APITimeoutError
 
 
 PASTA_PROJETO = Path(__file__).resolve().parent.parent
@@ -34,9 +36,14 @@ class ObservacaoResposta(ObservacaoEntrada):
     id: int
 
 #classe alterada para tratamento dos erros
+class MensagemConversa(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1)
+
 class TextoEntrada(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     texto: str = Field(min_length=1)
+    historico: list[MensagemConversa]
 
 class ComparacaoResposta(BaseModel):
     texto: str
@@ -53,10 +60,10 @@ MOTORES = {}
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     try:
-        MOTORES["comparacao"] = carregar_modelo()
-    except (OSError, ValueError) as falha:
-        MOTORES["comparacao"] = None
-        print(f"Modelo não carregado: {falha}")
+        MOTORES["conversa"] = carregar_modelo_conversa()
+    except (OSError, ValueError, KeyError) as falha:
+        MOTORES["conversa"] = None
+        print(f"Conversa indisponível: {falha}")
 
     yield
     MOTORES.clear()
@@ -170,20 +177,54 @@ def criar_observacao(observacao: ObservacaoEntrada):
     return registro
 
 
-@app.post("/processar_texto", response_model=ComparacaoResposta)
+@app.post(
+    "/processar_texto",
+    response_model=ComparacaoResposta,
+    tags=["Conversa"],
+    summary="Conversar sobre os dados dos tribunais",
+)
 def processar_texto(pedido: TextoEntrada):
-    if MOTORES["comparacao"] is None:
+    if MOTORES["conversa"] is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
-                "O modelo de comparação está indisponível. "
+                "O modelo de conversa está indisponível. "
                 "As consultas aos tribunais continuam disponíveis."
             ),
         )
 
-    # A geração usa a CPU, por isso a rota utiliza def.
+    try:
+        #temporário do 500 solicitado no feedback do TP4.
+        #raise ValueError("Falha simulada durante a geração.")
+        resultado = responder_conversa(
+            MOTORES["conversa"],
+            pedido.texto,
+            [mensagem.model_dump() for mensagem in pedido.historico],
+            carregar_tribunais(),
+        )
+    except APITimeoutError:
+        #feedback do TP4: demora excessiva retorna 504.
+        raise HTTPException(
+            status_code=504,
+            detail="O tempo de espera pelo modelo foi excedido. Tente novamente.",
+        )
+
+    except Exception as falha:
+        # Feedback do TP4: falhas durante a geração retornam 500.
+        print(f"Falha ao consultar o modelo: {falha}")
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível gerar a resposta. Tente novamente.",
+        )
+
+    if not resultado:
+        raise HTTPException(
+            status_code=500,
+            detail="O modelo não retornou uma resposta. Tente novamente.",
+        )
+
     return {
         "texto": pedido.texto,
-        "tipo_analise": "comparacao",
-        "resultado": gerar_comparacao(MOTORES["comparacao"], pedido.texto),
+        "tipo_analise": "conversa",
+        "resultado": resultado,
     }

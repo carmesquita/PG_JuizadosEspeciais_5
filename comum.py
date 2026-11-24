@@ -38,3 +38,4 @@ def iniciar_estado():
     )
     st.session_state.setdefault("limite", 420)
     st.session_state.setdefault("ordem", "Menor tempo primeiro")
+    st.session_state.setdefault("conversa", [])

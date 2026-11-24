@@ -1,9 +1,10 @@
-# PB Juizados Especiais — TP4
+# PB Juizados Especiais — TP5
 
 **Autora:** Carolina Gabriela Mesquita.
 
 Projeto acadêmico para comparar o tempo médio até a sentença nos Juizados Especiais dos 27 Tribunais de Justiça, utilizando dados de 2025 do CNJ.
-O TP4 acrescenta um modelo de linguagem local ao backend FastAPI para produzir explicações textuais sobre comparações fornecidas na entrada.
+
+A etapa 5 integra memória conversacional ao painel, permitindo consultar os dados e fazer perguntas encadeadas sobre os tribunais. A proposta está relacionada à ODS 16, por facilitar a compreensão e a leitura transparente de indicadores públicos da Justiça.
 
 ## Funcionalidades
 
@@ -12,77 +13,132 @@ O TP4 acrescenta um modelo de linguagem local ao backend FastAPI para produzir e
 - dados estatísticos obtidos pelo GET `/tribunais`;
 - notícias do CNJ como informações de contexto;
 - recebimento de observações pela API e armazenamento em `data/observacoes.csv`;
-- geração de explicações pelo POST `/processar_texto`;
+- memória conversacional na página Comparação entre tribunais;
+- perguntas e histórico enviados ao POST `/processar_texto`;
 - respostas estruturadas com Pydantic e tratamento de erros.
 
-## Modelo escolhido
+## Modelo e memória conversacional
 
-Foi utilizado `TinyLlama/TinyLlama-1.1B-Chat-v1.0`, executado na CPU, com `bfloat16`, `max_new_tokens=256` e `do_sample=False`.
+O modelo utilizado é `nvidia/nemotron-3.5-lightning:free`, acessado pelo OpenRouter com ChatOpenAI.
 
-Nos testes do notebook, duas comparações tiveram os valores e a direção da diferença preservados. Os tempos observados foram de 16,4 e 21,2 segundos. A memória calculada para os parâmetros foi de aproximadamente 2,2 GB; esse valor não representa a RAM total utilizada pela aplicação.
+A escolha ocorreu após os testes com o TinyLlama apresentarem falhas na recuperação do contexto. Os experimentos anteriores foram preservados como histórico do projeto.
 
-A justificativa completa está em `docs/escolha_modelo.docx`.
+O modelo recebe fatos contendo ano, sigla e tempo médio dos 27 tribunais. Também recebe o histórico da conversa e notas com as siglas mencionadas nas perguntas anteriores.
+
+O prompt orienta respostas curtas em português, utilização dos fatos fornecidos e preservação das siglas.
+
+
+## Bibliotecas utilizadas
+
+| Biblioteca | Uso no projeto |
+|---|---|
+| streamlit | Interface, gráficos e histórico da sessão |
+| pandas | Preparação dos dados e manipulação de tabelas |
+| requests | Coleta HTTP e comunicação do painel com a API |
+| beautifulsoup4 | Extração das informações das notícias |
+| fastapi | Rotas da API |
+| pydantic | Validação dos dados de entrada e saída |
+| uvicorn | Execução do servidor da API |
+| langchain-openai | Integração com o modelo por meio de ChatOpenAI |
+| openai | Cliente utilizado pela integração e tratamento de APITimeoutError |
+
+A instalação utiliza requirements-api.txt, que também inclui requirements.txt.
 
 ## Instalação e execução
 
-Na pasta do projeto, instale as dependências:
+Na pasta do projeto, crie o ambiente virtual, ative-o e instale as dependências:
 
 ```powershell
+python -m venv .venv
+.venv\Scripts\activate
 python -m pip install -r requirements-api.txt
 ```
 
-Inicie a API em um terminal:
+Nesse mesmo terminal, configure sua chave privada e inicie a API. Substitua SUA_CHAVE pela sua chave somente no terminal:
 
 ```powershell
-python -m uvicorn api.main:app
+$env:OPENROUTER_API_KEY = "SUA_CHAVE"
+uvicorn api.main:app
 ```
 
-Aguarde `Application startup complete`. Na primeira execução, é necessária conexão com a internet para baixar o modelo. Depois do download, o carregamento e a geração foram testados sem internet.
+Aguarde a inicialização da API. A chave deve permanecer fora do código compartilhado.
 
-Em outro terminal, inicie o aplicativo:
+Em outro terminal, na mesma pasta do projeto, ative o ambiente e inicie o painel:
 
 ```powershell
-python -m streamlit run app.py
+.venv\Scripts\activate
+streamlit run app.py
 ```
 
-Endereços locais:
+Os dois processos precisam permanecer em execução.
 
-- aplicativo: http://localhost:8501
-- documentação da API: http://127.0.0.1:8000/docs
+Endereços locais padrão:
 
-Os dois processos precisam permanecer em execução para o funcionamento integrado do painel.
+- [Aplicativo Streamlit](http://localhost:8501)
+- [Documentação da API](http://127.0.0.1:8000/docs)
 
-## Uso do LLM
 
-Em `/docs`, execute POST `/processar_texto` com:
+## Uso da conversa no painel
+
+Entre na página Comparação entre tribunais e utilize o campo de perguntas.
+
+Exemplos verificados na mesma conversa:
+
+1. Qual é o tempo médio até a sentença do TJAC em 2025?
+2. Qual tribunal eu citei na pergunta anterior?
+3. Compare esse tribunal com o TJSE em 2025. Qual teve o menor tempo médio até a sentença e qual foi a diferença em dias?
+
+As respostas informaram 129,6 dias para o TJAC, recuperaram sua sigla na pergunta seguinte e identificaram o TJSE como o tribunal com menor tempo: 111,7 dias, com diferença de 17,9 dias.
+
+As perguntas e respostas permanecem no histórico da sessão e são reenviadas ao modelo nas próximas interações.
+
+## Consulta pela documentação da API
+
+Para iniciar uma conversa pelo POST `/processar_texto`, utilize:
 
 ```json
 {
-  "texto": "Ano: 2025\nIndicador: tempo médio até a sentença nos Juizados Especiais\nTribunal com menor tempo: TJDFT\nTempo do TJDFT: 90,1 dias\nTribunal com maior tempo: TJSE\nTempo do TJSE: 111,7 dias\nDiferença: 21,6 dias"
+  "texto": "Qual é o tempo médio até a sentença do TJAC em 2025?",
+  "historico": []
 }
 ```
 
-A resposta contém `texto`, `tipo_analise` e `resultado`.
+O histórico começa vazio na primeira pergunta. Nas seguintes, deve conter as mensagens anteriores com os campos `role` e `content`.
 
-Entradas ausentes, de tipo incorreto, vazias ou contendo somente espaços são recusadas com 422. Se o modelo não estiver disponível, a rota retorna 503 com uma mensagem explicativa, enquanto as outras rotas continuam funcionando.
+A resposta contém `texto`, `tipo_analise` e `resultado`, com `tipo_analise` igual a `conversa`.
+
+A rota /processar_texto trata os seguintes casos:
+
+| Código | Situação |
+|---|---|
+| 422 | Entrada inválida |
+| 503 | Modelo não inicializado |
+| 500 | Falha durante a geração ou ausência de resposta |
+| 504 | Timeout na requisição ao modelo |
+
+A requisição ao modelo está configurada com timeout de 30 segundos e sem repetições automáticas.
+
+O retorno 500 foi verificado com uma falha simulada antes da geração. O retorno 504 foi verificado reduzindo temporariamente o timeout para 0.001 segundo. Depois dos testes, a falha simulada foi comentada, o timeout voltou para 30 segundos e o funcionamento normal foi confirmado.
 
 ## Ajustes decorrentes do feedback do TP3
 
 - O GET passou a alimentar tabelas e gráficos.
 - As observações passaram a ser gravadas em CSV e recuperadas na inicialização.
-- A tarefa efetiva do LLM foi registrada no Project Charter e no Data Summary Report.
-- O endereço da API foi centralizado em `comum.py`.
+- O uso efetivo do LLM foi registrado no Project Charter e no Data Summary Report.
+- O endereço local da API foi centralizado em `comum.py`.
 
 ## Limitações
 
-A configuração atual é destinada à execução local. Um aplicativo publicado precisaria acessar uma API disponível em endereço alcançável pela hospedagem.
-
-A saída do LLM é consultada pela API, em `/docs`; ainda não há interface de geração no Streamlit. O modelo pode incluir os rótulos “Dados” e “Resposta”. Os dois casos avaliados não representam uma medida geral de precisão.
-
-O indicador é agregado por tribunal e não representa a duração de processos individuais.
+- A base estatística contempla somente 2025.
+- O indicador é agregado por tribunal e não representa a duração de processos individuais nem explica as causas das diferenças.
+- Os testes realizados abrangem poucos exemplos. As respostas devem ser conferidas com os dados.
+- O histórico é mantido durante a sessão do Streamlit.
+- A conversa depende da conexão com a internet, da chave configurada e da disponibilidade da API do modelo.
+- A configuração atual é destinada à execução local.
 
 ## Fontes e apoio
 
 - Conselho Nacional de Justiça — Justiça em Números e notícias dos Juizados Especiais.
 - Organização das Nações Unidas — ODS 16.
-- ChatGPT — apoio na orientação de código e revisão da documentação. Apoio na correção gramatical e ajuste na fluidez dos textos. Apoio na complementação da documentação. A execução e a conferência dos resultados foram realizadas pela autora.
+- Materiais das disciplinas Projeto de Bloco, Desenvolvimento Data Driven Python e Engenharia de Prompts para Ciência de Dados.
+- ChatGPT — apoio na orientação do código, revisão dos textos e complementação da documentação. A execução da aplicação e a conferência dos resultados foram realizadas pela autora.

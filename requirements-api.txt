@@ -1,5 +1,4 @@
 -r requirements.txt
 fastapi
 uvicorn
-torch
-transformers
+langchain-openai

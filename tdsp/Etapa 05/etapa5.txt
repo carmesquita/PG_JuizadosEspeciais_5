@@ -8,4 +8,9 @@ O projeto será considerado aceito quando:
 - permitir baixar o resultado filtrado;
 - aceitar o arquivo CSV complementar no formato definido;
 - manter os dados complementares durante a sessão;
-- exibir as notícias coletadas do portal do CNJ.
+- exibir as notícias coletadas do portal do CNJ;
+- preservar em CSV as observações enviadas pela API, permitindo recuperá-las após sua reinicialização;
+- disponibilizar memória conversacional no dashboard, utilizando os dados do projeto;
+- manter o contexto entre perguntas sobre os tribunais;
+- apresentar resultados coerentes com os dados nos exemplos de validação;
+- documentar e explicar o ciclo da coleta até os resultados apresentados com IA, relacionando a solução ao problema dos Juizados Especiais e à ODS 16.

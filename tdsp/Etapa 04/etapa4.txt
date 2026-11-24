@@ -1,5 +1,15 @@
 ETAPA 4 - IMPLANTAÇÃO
-A aplicação foi construída em Streamlit.
-Os arquivos processados são lidos com cache para evitar leituras repetidas.
-O painel possui botão, slider, caixas de seleção, upload e download de CSV.
-O estado da sessão guarda a lista de tribunais escolhidos para comparação e os dados complementares enviados pelo usuário.
+
+A aplicação utiliza Streamlit na interface e FastAPI no backend, com execução local em processos separados.
+
+A API lê a base estatística processada e disponibiliza os dados pelo GET /tribunais. O painel utiliza esse retorno para alimentar consultas, tabelas e gráficos. As notícias são lidas do CSV preparado na coleta.
+
+O cliente de acesso ao modelo é criado na inicialização da API. A chave do OpenRouter é obtida do ambiente do servidor.
+
+O POST /processar_texto recebe a pergunta e o histórico, consulta o modelo com os fatos da base e retorna texto, tipo_analise e resultado em JSON.
+
+As observações enviadas pelo POST /observacoes são armazenadas em data/observacoes.csv e recuperadas na inicialização da API.
+
+O estado da sessão do Streamlit mantém os tribunais escolhidos para comparação, os dados complementares e o histórico da conversa.
+
+A memória conversacional está integrada à página Comparação entre tribunais. O usuário envia perguntas e acompanha as respostas na própria interface.

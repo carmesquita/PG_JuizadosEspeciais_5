@@ -4,3 +4,11 @@ ETAPA 3 - MODELAGEM
 Os tribunais são comparados pelo tempo médio até a sentença, medido em dias.
 O painel apresenta quantidade de tribunais, média simples dos valores, menor e maior tempo, gráfico de barras, tabela e consulta por tribunal.
 Um controle permite limitar o tempo exibido e outro altera a ordem dos resultados.
+
+Na etapa 4, o TinyLlama foi integrado à API para produzir explicações textuais sobre comparações entre tribunais. O modelo recebe um texto com ano, siglas, tempos médios e diferença. O prompt orienta a preservação desses dados e o formato da resposta.
+
+Na etapa 5, foi implementada memória conversacional com o modelo nvidia/nemotron-3.5-lightning:free, acessado pelo OpenRouter. A escolha ocorreu após os testes com o TinyLlama apresentarem falhas na recuperação do contexto.
+
+O prompt recebe os fatos dos 27 tribunais, o histórico da conversa e notas com as siglas mencionadas anteriormente. As instruções orientam o uso dos dados fornecidos, a preservação das siglas e respostas curtas em português.
+
+Os resultados de consulta, recuperação do tribunal anterior e comparação contextual foram conferidos com a base processada. Os exemplos e resultados estão registrados no Data Summary Report e representam uma amostra pequena de interações.

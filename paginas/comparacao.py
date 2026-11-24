@@ -1,6 +1,7 @@
+import requests
 import streamlit as st
 
-from comum import carregar_dados, iniciar_estado
+from comum import URL_API, carregar_dados, iniciar_estado
 
 
 dados, _ = carregar_dados()
@@ -120,3 +121,49 @@ if st.session_state["comparacao"]:
     if st.button("Limpar comparação"):
         st.session_state["comparacao"].clear()
         st.rerun()
+
+
+st.subheader("Conversa sobre os tribunais")
+st.write("Pergunte sobre o tempo médio até a sentença em 2025.")
+
+for mensagem in st.session_state["conversa"]:
+    if mensagem["role"] == "user":
+        st.write(f"**Você:** {mensagem['content']}")
+    else:
+        st.write(f"**Assistente:** {mensagem['content']}")
+
+pergunta = st.chat_input("Digite sua pergunta sobre os tribunais")
+
+if pergunta:
+    try:
+        resposta = requests.post(
+            f"{URL_API}/processar_texto",
+            json={
+                "texto": pergunta,
+                "historico": st.session_state["conversa"],
+            },
+            timeout=60,
+        )
+
+        if resposta.status_code == 200:
+            st.session_state["conversa"].append(
+                {"role": "user", "content": pergunta}
+            )
+            st.session_state["conversa"].append(
+                {
+                    "role": "assistant",
+                    "content": resposta.json()["resultado"],
+                }
+            )
+            st.rerun()
+        else:
+            st.error(
+                f"A API retornou o erro {resposta.status_code}: "
+                f"{resposta.json().get('detail', 'Erro não identificado.')}"
+            )
+
+    except requests.RequestException:
+        st.error(
+            "Não foi possível consultar a API. "
+            "Verifique o terminal do FastAPI e tente novamente."
+        )        
