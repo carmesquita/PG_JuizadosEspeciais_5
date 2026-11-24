@@ -118,7 +118,7 @@ A rota /processar_texto trata os seguintes casos:
 
 A requisição ao modelo está configurada com timeout de 30 segundos e sem repetições automáticas.
 
-O retorno 500 foi verificado com uma falha simulada antes da geração. O retorno 504 foi verificado reduzindo temporariamente o timeout para 0.001 segundo. Depois dos testes, a falha simulada foi comentada, o timeout voltou para 30 segundos e o funcionamento normal foi confirmado.
+O retorno 500 foi verificado com uma falha simulada antes da geração. O retorno 504 foi verificado reduzindo temporariamente o timeout para 0.001 segundo.
 
 ## Ajustes decorrentes do feedback do TP3
 
